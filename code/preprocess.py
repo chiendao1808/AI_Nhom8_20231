@@ -7,7 +7,7 @@ from torchvision.models.segmentation import deeplabv3_mobilenet_v3_large
 process_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Hàm load mô hình mobinetV3
-CHECKPOINT_MBV3_MODEL_PATH = r"model/model_mbv3_iou_mix_2C049.pth"
+CHECKPOINT_MBV3_MODEL_PATH = r"./model/model_mbv3_iou_mix_2C049.pth"
 
 
 def load_model(num_classes=1, model_name="mobinetv3"):
