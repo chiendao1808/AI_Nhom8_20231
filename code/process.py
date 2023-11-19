@@ -3,6 +3,7 @@ import gc
 import cv2
 import torch
 import numpy as np
+import imutils
 
 # internal module
 import preprocess
@@ -173,7 +174,6 @@ def extract(image_true=None, image_size=640, BUFFER=10):
     M = cv2.getPerspectiveTransform(
         np.float32(corners), np.float32(destination_corners)
     )
-    print(M)
 
     final = cv2.warpPerspective(
         image_true,
@@ -184,3 +184,31 @@ def extract(image_true=None, image_size=640, BUFFER=10):
     # Xử lý màu và round về khoảng [0:255] của ảnh đã tách
     final = np.clip(final, a_min=0.0, a_max=255.0)
     return final
+
+ # ======= GET x,y functions ==========
+def get_x(s):
+    return s[1][0]
+
+
+def get_y(s):
+    return s[1][1]
+
+
+def get_h(s):
+    return s[1][3]
+
+
+def get_x_ver1(s):
+    s = cv2.boundingRect(s)
+    return s[0] * s[1]
+
+# =================== PROCESS INFO SECTION ===================================== 
+
+
+def crop_info_section(image):
+    left = 700
+    top = 0
+    right = 1056
+    bottom = 549
+    cropped_info_section = image[top:bottom, left:right]
+    return cropped_info_section
