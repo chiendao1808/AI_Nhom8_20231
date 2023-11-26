@@ -24,6 +24,9 @@ if __name__ == "__main__":
         resize_image = cv2.resize(document, (1056, 1549), interpolation=cv2.INTER_AREA)
         
         # Crop info section
-        cropped_section = process.crop_info_section(resize_image)
-        info_write_path = f"./processed_data/cropped_info_section/info_section_cropped_{i+1}.jpg"
-        cv2.imwrite(info_write_path, cropped_section * 255.0)
+        # cropped_section = process.crop_info_section(resize_image)
+        # info_write_path = f"./processed_data/cropped_info_section/info_section_cropped_{i+1}.jpg"
+        # cv2.imwrite(info_write_path, cropped_section * 255.0)
+        
+        # Crop multiple choice section
+        process.get_answers_boxes(resize_image, i+1)
