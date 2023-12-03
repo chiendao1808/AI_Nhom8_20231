@@ -1,5 +1,4 @@
-choice
-unchoice
+-1
 0
 1
 2
@@ -10,3 +9,5 @@ unchoice
 7
 8
 9
+choice
+unchoice
