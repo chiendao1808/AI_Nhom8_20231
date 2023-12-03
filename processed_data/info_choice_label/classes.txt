@@ -9,5 +9,3 @@
 7
 8
 9
-choice
-unchoice
