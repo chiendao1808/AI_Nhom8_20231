@@ -12,7 +12,8 @@ import preprocess
 # Khởi tạo các thành phần tiền xử lý: model, image preprocessing
 MBV3_MODEL_NAME = "mobinetv3"
 
-mbv3_trained_model = preprocess.load_model(num_classes=2, model_name=MBV3_MODEL_NAME)
+mbv3_trained_model = preprocess.load_model(
+    num_classes=2, model_name=MBV3_MODEL_NAME)
 
 preprocess_tranform = preprocess.image_preprocess_transform()
 
@@ -39,7 +40,8 @@ def find_dest(pts):
     heightA = np.sqrt(((tr[0] - br[0]) ** 2) + ((tr[1] - br[1]) ** 2))
     heightB = np.sqrt(((tl[0] - bl[0]) ** 2) + ((tl[1] - bl[1]) ** 2))
     maxHeight = max(int(heightA), int(heightB))
-    destination_corners = [[0, 0], [maxWidth, 0], [maxWidth, maxHeight], [0, maxHeight]]
+    destination_corners = [[0, 0], [maxWidth, 0],
+                           [maxWidth, maxHeight], [0, maxHeight]]
     return order_points(destination_corners)
 
 
@@ -81,9 +83,10 @@ def extract(image_true=None, image_size=640, BUFFER=10):
     )
     r_W, r_H = out.shape
 
-    out_extended = np.zeros((IMAGE_SIZE + r_H, IMAGE_SIZE + r_W), dtype=out.dtype)
+    out_extended = np.zeros(
+        (IMAGE_SIZE + r_H, IMAGE_SIZE + r_W), dtype=out.dtype)
     out_extended[
-        half_size : half_size + IMAGE_SIZE, half_size : half_size + IMAGE_SIZE
+        half_size: half_size + IMAGE_SIZE, half_size: half_size + IMAGE_SIZE
     ] = (out * 255)
     out = out_extended.copy()
 
@@ -93,8 +96,10 @@ def extract(image_true=None, image_size=640, BUFFER=10):
     # Sử dụng thư viện cv2 để lấy vùng chứa phiếu đã xác định được từ ảnh gốc sử dụng
     # Sử dụng Canny và Contours
     canny = cv2.Canny(out.astype(np.uint8), 225, 255)
-    canny = cv2.dilate(canny, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)))
-    contours, _ = cv2.findContours(canny, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+    canny = cv2.dilate(canny, cv2.getStructuringElement(
+        cv2.MORPH_ELLIPSE, (5, 5)))
+    contours, _ = cv2.findContours(
+        canny, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
     page = sorted(contours, key=cv2.contourArea, reverse=True)[0]
 
     # Xử lý và lấy được toạ độ các góc
@@ -154,7 +159,7 @@ def extract(image_true=None, image_size=640, BUFFER=10):
             dtype=image_true.dtype,
         )
         image_extended[
-            top_pad : top_pad + imageH, left_pad : left_pad + imageW, :
+            top_pad: top_pad + imageH, left_pad: left_pad + imageW, :
         ] = image_true
         image_extended = image_extended.astype(np.float32)
 
@@ -187,6 +192,8 @@ def extract(image_true=None, image_size=640, BUFFER=10):
     return final
 
  # ======= GET x,y functions ==========
+
+
 def get_x(s):
     return s[1][0]
 
@@ -203,7 +210,7 @@ def get_x_ver1(s):
     s = cv2.boundingRect(s)
     return s[0] * s[1]
 
-# =================== PROCESS INFO SECTION ===================================== 
+# =================== PROCESS INFO SECTION =====================================
 
 
 def crop_info_section(image):
