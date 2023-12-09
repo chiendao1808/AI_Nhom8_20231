@@ -37,7 +37,9 @@ def processAnswerSheet(imgPath):
 if __name__ == "__main__":
     
     # test 
-    result_info = processAnswerSheet('./data/f13.jpg')
+    img_path = "C:\\Users\\leope\\Desktop\\answer_new_data\\sheet19.jpg";
+    local_img_path = "./data/f39.jpg"
+    result_info = processAnswerSheet(imgPath = local_img_path)
     
     # print("Main Application")
     # data_path = "./data";

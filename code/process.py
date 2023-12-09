@@ -280,28 +280,28 @@ def predict_info(img, model, index):
 
 # Get detail info choice 
 def get_info_choice(ix):
-    if ix <= 15:
+    choose = ""
+    ix = floor(ix)
+    if ix <= 27:
         choose = "0"
-    elif 30 < ix <= 50:
+    elif 28 <= ix <= 57:
         choose = "1"
-    elif 60 < ix <= 80:
+    elif 58 <= ix <= 77:
         choose = "2"
-    elif 90 < ix <= 110:
+    elif 88 <= ix <= 117:
         choose = "3"
-    elif 120 < ix <= 140:
+    elif 118 <= ix <= 147:
         choose = "4"
-    elif 150 < ix <= 170:
+    elif 148 <= ix <= 177:
         choose = "5"
-    elif 180 < ix <= 200:
+    elif 178 <= ix <= 207:
         choose = "6"
-    elif 210 < ix <= 230:
+    elif 208 <= ix <= 237:
         choose = "7"
-    elif 240 < ix <= 260:
+    elif 238 <= ix <= 267:
         choose = "8"
-    elif 270 < ix <= 290:
+    elif 268 <= ix <= 397:
         choose = "9"
-    else:
-        "Not choice"    
     return choose      
         
 # croppted info boxes by CONTOUR
