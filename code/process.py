@@ -4,7 +4,8 @@ import cv2
 import torch
 import numpy as np
 import imutils
-from math import ceil
+from math import *
+from ultralytics import YOLO
 
 # internal module
 import preprocess
@@ -212,17 +213,134 @@ def get_x_ver1(s):
 
 # =================== PROCESS INFO SECTION =====================================
 
-
-def crop_info_section(image):
+def get_info(image):
     left = 700
     top = 0
     right = 1056
-    bottom = 549
-    cropped_info_section = image[top:bottom, left:right]
-    return cropped_info_section
+    bottom = 500
+    cropped_image = image[top:bottom, left:right]
+    # Tách box info khỏi cropped_image
+    info_boxes = crop_info_section(cv2.convertScaleAbs(cropped_image * 255))
+    list_info_cropped = process_info_blocks(info_boxes)
+    pWeight = './model/info.pt'
+    model = YOLO(pWeight)
+    dict_results = {}
+    for index, info in enumerate(list_info_cropped):
+        selected_info = predict_info(img=info, model=model, index=index)
+        dict_results[f'{index+1}'] = selected_info
+    mssv = ''.join(list(dict_results.values())[:6])
+    madethi = ''.join(list(dict_results.values())[-3:])
+    result_info = {}
+    result_info["SBD"] = mssv
+    result_info["MDT"] = madethi
+    return result_info
+    
+
+# Process info blocks    
+def process_info_blocks(info_blocks):
+    list_info_cropped = []
+    list_info_cropped = []
+    for info_block in info_blocks:
+
+        info_block_img = np.array(info_block[0])
+        wh_block = info_block_img.shape[1]
+        if wh_block > 100:
+            offset1 = floor(wh_block // 6)
+            for i in range(6):
+                box_img = np.array(
+                    info_block_img[:, i * offset1:(i + 1) * offset1])
+                list_info_cropped.append(box_img)
+        else:
+            offset1 = floor(wh_block // 3)
+            for i in range(3):
+                box_img = np.array(
+                    info_block_img[:, i * offset1:(i + 1) * offset1])
+                list_info_cropped.append(box_img)
+    return list_info_cropped
+    
+
+# Predict info choice using model to predict   
+def predict_info(img, model, index):
+    choice = ''
+    imProcess = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+    h, w, _ = imProcess.shape
+    results = model.predict(imProcess)
+    data = results[0].boxes.data
+
+    for i, data in enumerate(data):
+        x1 = int(data[0])
+        y1 = int(data[1])
+        x2 = int(data[2])
+        y2 = int(data[3])
+        class1 = int(data[5])
+
+        if class1 == 0:
+            choice = get_info_choice(ix=y1)
+    return choice
+
+# Get detail info choice 
+def get_info_choice(ix):
+    if ix <= 15:
+        choose = "0"
+    elif 30 < ix <= 50:
+        choose = "1"
+    elif 60 < ix <= 80:
+        choose = "2"
+    elif 90 < ix <= 110:
+        choose = "3"
+    elif 120 < ix <= 140:
+        choose = "4"
+    elif 150 < ix <= 170:
+        choose = "5"
+    elif 180 < ix <= 200:
+        choose = "6"
+    elif 210 < ix <= 230:
+        choose = "7"
+    elif 240 < ix <= 260:
+        choose = "8"
+    elif 270 < ix <= 290:
+        choose = "9"
+    else:
+        "Not choice"    
+    return choose      
+        
+# croppted info boxes by CONTOUR
+def crop_info_section(image):
+    gray_img = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    blurred = cv2.GaussianBlur(gray_img, (9, 9), 0)
+    img_canny = cv2.Canny(blurred, 0, 20)
+    cnts = cv2.findContours(
+        img_canny.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    cnts = imutils.grab_contours(cnts)
+    info_blocks = []
+    x_old, y_old, w_old, h_old = 0, 0, 0, 0
+    if len(cnts) > 0:
+        cnts = sorted(cnts, key=get_x_ver1)
+        for i, c in enumerate(cnts):
+            x_curr, y_curr, w_curr, h_curr = cv2.boundingRect(c)
+            if 35000 < w_curr * h_curr < 45000 or 17500 < w_curr * h_curr < 25000 and h_curr > 200:
+                check_xy_min = x_curr * y_curr - x_old * y_old
+                check_xy_max = (x_curr + w_curr) * (y_curr + h_curr) - (x_old + w_old) * (y_old + h_old)
+                if len(info_blocks) == 0:
+                    info_blocks.append(
+                        (gray_img[y_curr:y_curr + h_curr, x_curr:x_curr + w_curr], [x_curr, y_curr, w_curr, h_curr]))
+                    x_old = x_curr
+                    y_old = y_curr
+                    w_old = w_curr
+                    h_old = h_curr
+                elif check_xy_min > 2000 and check_xy_max > 2000:
+                    info_blocks.append(
+                        (gray_img[y_curr:y_curr + h_curr, x_curr:x_curr + w_curr], [x_curr, y_curr, w_curr, h_curr]))
+                    x_old = x_curr
+                    y_old = y_curr
+                    w_old = w_curr
+                    h_old = h_curr
+
+        sorted_ans_blocks = sorted(info_blocks, key=get_x)
+        return sorted_ans_blocks
 
 
-# =================== PROCESS INFO SECTION ===================================== 
+# =================== PROCESS ANSWER SECTION ===================================== 
 
 def get_answers_boxes(img, data_idx = 0):
     # get answers boxes
@@ -230,13 +348,14 @@ def get_answers_boxes(img, data_idx = 0):
     
     #Get column box of answers
     idx = 1
-    for ans_boxes in list_ans_boxes:
-        cv2.imwrite(f"./processed_data/cropped_mchoice_section/cropped_data_{data_idx}_col_{idx}.jpg", ans_boxes[0])
-        idx += 1
+    # for ans_boxes in list_ans_boxes:
+    #     cv2.imwrite(f"./processed_data/cropped_mchoice_section/cropped_data_{data_idx}_col_{idx}.jpg", ans_boxes[0])
+    #     idx += 1
             
     list_ans = process_ans_blocks(list_ans_boxes)
     for i, answer in enumerate(list_ans):
-        cv2.imwrite(f"./processed_data/cropped_mchoice_section/marked_answers_set/cropped_data_{data_idx}_answer_{i}.jpg", answer)
+        # cv2.imwrite(f"./processed_data/cropped_mchoice_section/marked_answers_set/cropped_data_{data_idx}_answer_{i}.jpg", answer)
+        cv2.imwrite(f"C:\\Users\leope\Desktop\\answer_new_data\\answer_images\\sheet_{data_idx}_answer_{i+1}.jpg", answer)
 
 def process_ans_blocks(ans_blocks):
     list_answers = []
