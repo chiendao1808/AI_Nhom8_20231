@@ -213,6 +213,19 @@ def get_x_ver1(s):
 
 # =================== PROCESS INFO SECTION =====================================
 
+map_info_detect = {
+    16 : '0',
+    17 : '1',
+    18 : '2',
+    19 : '3',
+    20 : '4',
+    21 : '5', 
+    22 : '6', 
+    23 : '7',
+    24 : '8',
+    25 : '9',
+}
+
 def get_info(image):
     left = 700
     top = 0
@@ -222,7 +235,7 @@ def get_info(image):
     # Tách box info khỏi cropped_image
     info_boxes = crop_info_section(cv2.convertScaleAbs(cropped_image * 255))
     list_info_cropped = process_info_blocks(info_boxes)
-    pWeight = './model/info.pt'
+    pWeight = './model/best_info_combined.pt'
     model = YOLO(pWeight)
     dict_results = {}
     for index, info in enumerate(list_info_cropped):
@@ -238,7 +251,6 @@ def get_info(image):
 
 # Process info blocks    
 def process_info_blocks(info_blocks):
-    list_info_cropped = []
     list_info_cropped = []
     for info_block in info_blocks:
 
@@ -265,22 +277,31 @@ def predict_info(img, model, index):
     imProcess = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
     h, w, _ = imProcess.shape
     results = model.predict(imProcess)
-    data = results[0].boxes.data
+    lst_data = results[0].boxes.data
+    lst_confi = results[0].boxes.conf
+    print(lst_confi)
 
-    for i, data in enumerate(data):
-        x1 = int(data[0])
-        y1 = int(data[1])
-        x2 = int(data[2])
-        y2 = int(data[3])
-        class1 = int(data[5])
-
-        if class1 == 0:
-            choice = get_info_choice(ix=y1)
+    max_confi = 0.0
+    for i, data in enumerate(lst_data):
+        print(data)
+        confi = data[4]
+        if(confi > max_confi):
+            max_confi = confi
+            choice = map_info_detect[int(data[5])]
+        # x1 = int(data[0])
+        # y1 = int(data[1])
+        # x2 = int(data[2])
+        # y2 = int(data[3])
+        # get class 
+        # class1 = int(data[5])
+        # choice = str(map_info_detect[class1])
+        # if class1 == 0:
+        #     choice = get_info_choice(ix=y1)
     return choice
 
-# Get detail info choice 
+# Get detail info choice (for 2 classes)
 def get_info_choice(ix):
-    choose = ""
+    choose = "x"
     ix = floor(ix)
     if ix <= 27:
         choose = "0"
