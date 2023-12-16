@@ -2,45 +2,12 @@ import process
 import cv2
 import os
 
-# test for a single file
-def processAnswerSheet(imgPath):
-    # Lấy ảnh 
-    image = cv2.imread(imgPath, cv2.IMREAD_COLOR)[:, :, ::-1]
-    
-    # Cắt background
-    document = process.extract(image_true=image)
-    document = document / 255.0
-    
-    # Resize lại ảnh
-    resize_img = cv2.resize(document, (1056, 1500), interpolation=cv2.INTER_AREA)
-    
-    # cv2.imwrite("test_extract.jpg", document*255)
-    
-    # cv2.imshow("Image", resize_img)
-    # cv2.waitKey(0)
-    
-    # Lấy thông tin mã người làm bài và mã đề thi
-    result_info = process.get_info(resize_img)
-    
-    number_answer = 120
-    
-    # Lấy các câu trả lời 
-    # result_answer = get_answer(resize_img, number_answer)
-
-
-    print(result_info)
-    
-    
-    return result_info
-
-
-
 if __name__ == "__main__":
     
     # test 
     img_path = "C:\\Users\\leope\\Desktop\\answer_new_data\\sheet26.jpg";
     local_img_path = "./data/f13.jpg"
-    result_info = processAnswerSheet(imgPath = local_img_path)
+    result_info = process.process_answer_sheet(imgPath = local_img_path)
     
     # print("Main Application")
     # data_path = "C:\\Users\\leope\\Desktop\\answer_new_data";

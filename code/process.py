@@ -377,6 +377,23 @@ def get_answers_boxes(img, data_idx = 0):
     for i, answer in enumerate(list_ans):
         # cv2.imwrite(f"./processed_data/cropped_mchoice_section/marked_answers_set/cropped_data_{data_idx}_answer_{i}.jpg", answer)
         cv2.imwrite(f"C:\\Users\leope\Desktop\\answer_new_data\\answer_images\\sheet_{data_idx}_answer_{i+1}.jpg", answer)
+   
+# get process and get answers     
+def get_answers(img, number_answer):
+    list_ans_boxes = crop_answer_section(cv2.convertScaleAbs(img * 255))
+    list_ans = process_ans_blocks(list_ans_boxes)
+    pWeight = './model/best.pt'
+    model = YOLO(pWeight)
+    # Get result
+    dict_results = {}
+    for i, answer in enumerate(list_ans):
+        # cv2.imwrite(f"./test/test{i}.jpg", answer)
+        selected_answer = predict_answer(img=answer, model=model, index=i)
+        dict_results[f'{i+1}'] = selected_answer
+        if i == (number_answer - 1):
+            break
+    return dict_results
+            
 
 def process_ans_blocks(ans_blocks):
     list_answers = []
@@ -392,6 +409,45 @@ def process_ans_blocks(ans_blocks):
                 list_answers.append(box_img[j * offset2:(j + 1) * offset2, :])
 
     return list_answers
+
+def predict_answer(img, model, index):
+    choice = ''
+    imProcess = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+    h, w, _ = imProcess.shape
+    results = model.predict(imProcess)
+    data = results[0].boxes.data
+    for i, data in enumerate(data):
+        x1 = int(data[0])
+        y1 = int(data[1])
+        x2 = int(data[2])
+        y2 = int(data[3])
+        # lấy class detect, x, and confi -> lấy đáp án
+        confi = float(data[4])
+        class1 = int(data[5])
+        if class1 == 0 and confi > 0.8:
+            choice = get_answer_choice(iw=w, ix=x1) #
+            continue
+
+    return choice
+
+def get_answer_choice(iw, ix):
+    newIw = iw - 9 # trừ đi phần số thứ tự câu (padding bên trái)
+    choiceA = (ix - 35) / newIw
+    choiceB = (ix - 25) / newIw
+    choiceC = (ix - 15) / newIw
+    choiceD = (ix - 5) / newIw # padding bên phải
+    # Lấy tỷ lệ 1/4 để lấy dự đoán các đáp án
+    if choiceA <= 0.25:
+        choice = "A"
+    elif 0.25 < choiceB <= 0.5:
+        choice = "B"
+    elif 0.5 < choiceC <= 0.75:
+        choice = "C"
+    elif 0.75 < choiceD <= 1:
+        choice = "D"
+    else:
+        choice = ""
+    return choice
 
 def crop_answer_section(img):
     gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -428,3 +484,35 @@ def crop_answer_section(img):
         sorted_ans_blocks = sorted(ans_blocks, key=get_x)
 
         return sorted_ans_blocks
+    
+    
+    # test for a single file
+def process_answer_sheet(imgPath):
+    # Lấy ảnh 
+    image = cv2.imread(imgPath, cv2.IMREAD_COLOR)[:, :, ::-1]
+    
+    # Cắt background
+    document = extract(image_true=image)
+    document = document / 255.0
+    
+    # Resize lại ảnh
+    resize_img = cv2.resize(document, (1056, 1500), interpolation=cv2.INTER_AREA)
+    
+    # cv2.imwrite("test_extract.jpg", document*255)
+    
+    # cv2.imshow("Image", resize_img)
+    # cv2.waitKey(0)
+    
+    # Lấy thông tin mã người làm bài và mã đề thi
+    result_info = get_info(resize_img)
+    
+    number_answer = 120
+    
+    # Lấy các câu trả lời 
+    result_answer = get_answers(resize_img, number_answer)
+
+
+    print(result_info, result_answer)
+    
+    
+    return result_info, result_answer
