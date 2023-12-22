@@ -7,6 +7,9 @@ import imutils
 from math import *
 from ultralytics import YOLO
 
+# Tách tài liệu từ nền sử dụng OpenCV và Model MobinetV3
+# https://github.com/spmallick/learnopencv/tree/master/Document-Scanner-Custom-Semantic-Segmentation-using-PyTorch-DeepLabV3
+
 # internal module
 import preprocess
 
@@ -100,6 +103,7 @@ def extract(image_true=None, image_size=640, BUFFER=10):
 
     # Sử dụng thư viện cv2 để lấy vùng chứa phiếu đã xác định được từ ảnh gốc sử dụng
     # Sử dụng Canny và Contours
+    # Xác định cạnh (Edge Detection)
     canny = cv2.Canny(out.astype(np.uint8), 225, 255)
     canny = cv2.dilate(canny, cv2.getStructuringElement(
         cv2.MORPH_ELLIPSE, (5, 5)))
@@ -131,6 +135,9 @@ def extract(image_true=None, image_size=640, BUFFER=10):
     #     and np.all(corners.max(axis=0) <= (imageW, imageH))
     # )
 
+    # Kiểm tra nếu các góc nằm trong
+    # Nếu không tìm box bao quanh nhỏ nhất (smallest enclosing box), mở rộng ảnh -> tách tài liệu
+    # Nếu tìm thấy -> tách tài liệu
     if not (
         np.all(corners.min(axis=0) >= (0, 0))
         and np.all(corners.max(axis=0) <= (imageW, imageH))
@@ -146,7 +153,8 @@ def extract(image_true=None, image_size=640, BUFFER=10):
         box_y_min = np.min(box_corners[:, 1])
         box_y_max = np.max(box_corners[:, 1])
 
-        #
+        # Tìm điểm góc mà không thỏa mãn ràng buộc của ảnh và lưu lại số lượng dịch (shift) để đảm bảo box góc thỏa mãn
+        # ràng buộc
         if box_x_min <= 0:
             left_pad = abs(box_x_min) + BUFFER
 
@@ -159,15 +167,18 @@ def extract(image_true=None, image_size=640, BUFFER=10):
         if box_y_max >= imageH:
             bottom_pad = (box_y_max - imageH) + BUFFER
 
+        # ảnh mới được thêm các pixel 0 (zeros pixels)
         image_extended = np.zeros(
             (top_pad + bottom_pad + imageH, left_pad + right_pad + imageW, C),
             dtype=image_true.dtype,
         )
+        # Điều chỉnh ảnh gốc nằm trong ảnh đã được mở rộng 'image_extended'
         image_extended[
             top_pad: top_pad + imageH, left_pad: left_pad + imageW, :
         ] = image_true
         image_extended = image_extended.astype(np.float32)
 
+        # Dịch 'box corners' một khoảng quy định
         box_corners[:, 0] += left_pad
         box_corners[:, 1] += top_pad
 
