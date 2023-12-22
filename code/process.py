@@ -18,6 +18,10 @@ mbv3_trained_model = preprocess.load_model(
 
 preprocess_tranform = preprocess.image_preprocess_transform()
 
+# Tải model info detect choose/unchoose
+choiceInfoWeight = './model/info.pt'
+choice_info_model = YOLO(choiceInfoWeight)
+
 
 # Sắp xếp các điểm ở góc của box
 def order_points(pts):
@@ -206,7 +210,7 @@ def get_y(s):
 def get_h(s):
     return s[1][3]
 
-
+# Diện tích contours
 def get_x_ver1(s):
     s = cv2.boundingRect(s)
     return s[0] * s[1]
@@ -235,7 +239,7 @@ def get_info(image):
     # Tách box info khỏi cropped_image
     info_boxes = crop_info_section(cv2.convertScaleAbs(cropped_image * 255))
     list_info_cropped = process_info_blocks(info_boxes)
-    pWeight = './model/best_info_combined.pt'
+    pWeight = './model/best_info_combined_0812.pt'
     model = YOLO(pWeight)
     dict_results = {}
     for index, info in enumerate(list_info_cropped):
@@ -252,18 +256,19 @@ def get_info(image):
 # Process info blocks    
 def process_info_blocks(info_blocks):
     list_info_cropped = []
+    # loop các khối đã tách được bằng contour
     for info_block in info_blocks:
-
         info_block_img = np.array(info_block[0])
         wh_block = info_block_img.shape[1]
+        # check width của các block để phân biệt block SBD hay block MĐT
         if wh_block > 100:
-            offset1 = floor(wh_block // 6)
+            offset1 = floor(wh_block // 6) # chiều rộng của mỗi ô
             for i in range(6):
                 box_img = np.array(
                     info_block_img[:, i * offset1:(i + 1) * offset1])
                 list_info_cropped.append(box_img)
         else:
-            offset1 = floor(wh_block // 3)
+            offset1 = floor(wh_block // 3) # chiều rộng của mỗi ô
             for i in range(3):
                 box_img = np.array(
                     info_block_img[:, i * offset1:(i + 1) * offset1])
@@ -271,7 +276,7 @@ def process_info_blocks(info_blocks):
     return list_info_cropped
     
 
-# Predict info choice using model to predict   
+# Predict info choice using model to predict (by class 0 -> 9)   
 def predict_info(img, model, index):
     choice = ''
     imProcess = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
@@ -288,19 +293,30 @@ def predict_info(img, model, index):
         if(confi > max_confi):
             max_confi = confi
             choice = map_info_detect[int(data[5])]
-        # x1 = int(data[0])
-        # y1 = int(data[1])
-        # x2 = int(data[2])
-        # y2 = int(data[3])
-        # get class 
-        # class1 = int(data[5])
-        # choice = str(map_info_detect[class1])
-        # if class1 == 0:
-        #     choice = get_info_choice(ix=y1)
     return choice
 
-# Get detail info choice (for 2 classes)
-def get_info_choice(ix):
+
+# detect info choose/unchoose
+def predict_info_choose(img, model):
+    choice = ''
+    imProcess = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+    h, w, _ = imProcess.shape
+    results = model.predict(imProcess)
+    lst_data = results[0].boxes.data
+    lst_confi = results[0].boxes.conf
+    for i, data in enumerate(lst_data):
+        # x1 = int(data[0])
+        y1 = int(data[1])
+        # x2 = int(data[2])
+        # y2 = int(data[3])
+        # get class idx
+        class1 = int(data[5])
+        if class1 == 0:
+            choice = get_info_choose(ix=y1)
+    return choice
+
+# Get detail info choice (for 2 classes choose/unchoose)
+def get_info_choose(ix):
     choose = "x"
     ix = floor(ix)
     if ix <= 27:
@@ -330,8 +346,7 @@ def crop_info_section(image):
     gray_img = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     blurred = cv2.GaussianBlur(gray_img, (9, 9), 0)
     img_canny = cv2.Canny(blurred, 0, 20)
-    cnts = cv2.findContours(
-        img_canny.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    cnts = cv2.findContours(img_canny.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     cnts = imutils.grab_contours(cnts)
     info_blocks = []
     x_old, y_old, w_old, h_old = 0, 0, 0, 0
@@ -339,7 +354,8 @@ def crop_info_section(image):
         cnts = sorted(cnts, key=get_x_ver1)
         for i, c in enumerate(cnts):
             x_curr, y_curr, w_curr, h_curr = cv2.boundingRect(c)
-            if 35000 < w_curr * h_curr < 45000 or 17500 < w_curr * h_curr < 25000 and h_curr > 200:
+            # Kiểm tra diện tích contours -> thu được contours có Smax và ko trùng nhau
+            if (35000 < w_curr * h_curr < 45000 or 17500 < w_curr * h_curr < 25000) and h_curr > 200:
                 check_xy_min = x_curr * y_curr - x_old * y_old
                 check_xy_max = (x_curr + w_curr) * (y_curr + h_curr) - (x_old + w_old) * (y_old + h_old)
                 if len(info_blocks) == 0:
@@ -395,6 +411,7 @@ def get_answers(img, number_answer):
     return dict_results
             
 
+# Xử lý cột -> box -> câu hỏi
 def process_ans_blocks(ans_blocks):
     list_answers = []
     for ans_block in ans_blocks:
@@ -403,7 +420,9 @@ def process_ans_blocks(ans_blocks):
         for i in range(6):
             box_img = np.array(ans_block_img[i * offset1:(i + 1) * offset1, :])
             height_box = box_img.shape[0]
+            # Thu gọn kích thước box (do 2 cạnh trên/dưới) để kích thước box chỉ chứa các câu hỏi có kích thước bằng nhau -> chia đều được
             box_img = box_img[14:height_box - 14, :]
+            # Chia đều cho 5 câu hỏi trên/box -> height của 1 cut
             offset2 = ceil(box_img.shape[0] / 5)
             for j in range(5):
                 list_answers.append(box_img[j * offset2:(j + 1) * offset2, :])
@@ -461,8 +480,10 @@ def crop_answer_section(img):
 
     if len(cnts) > 0:
         cnts = sorted(cnts, key=get_x_ver1)
+        # Loop qua các contours xác định được
         for i, c in enumerate(cnts):
             x_curr, y_curr, w_curr, h_curr = cv2.boundingRect(c)
+            # Kiểm tra diện tích contours -> thu được contours có Smax và ko trùng nhau
             if w_curr * h_curr > 170000 and w_curr * h_curr < 250000:
                 check_xy_min = x_curr * y_curr - x_old * y_old
                 check_xy_max = (x_curr + w_curr) * (y_curr + h_curr) - (x_old + w_old) * (y_old + h_old)

@@ -9,7 +9,6 @@ def upload_file(my_w, result_view):
     global img, filename
     f_types = [('Jpg Files', '*.jpg'), ('Png Files', '*.png')]
     filename = filedialog.askopenfilename(filetypes=f_types)
-    print(filename)
     img=Image.open(filename)
     width, height = img.size
     width_new = int(width/3)
