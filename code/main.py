@@ -37,8 +37,8 @@ if __name__ == "__main__":
         right = 1056
         bottom = 500
         cropped_section = resize_image[top:bottom, left:right]
-        info_write_path = f"C:\\Users\\leope\\Desktop\\answer_new_data\\info_cropped/a{i+1+56}.jpg"
-        cv2.imwrite(info_write_path, cropped_section * 255.0)
+        # info_write_path = f"C:\\Users\\leope\\Desktop\\answer_new_data\\info_cropped/a{i+1+56}.jpg"
+        # cv2.imwrite(info_write_path, cropped_section * 255.0)
         
         # # Crop multiple choice section
         # process.get_answers_boxes(resize_image, i+1)

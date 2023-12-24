@@ -250,6 +250,7 @@ def get_info(image):
     right = 1056
     bottom = 500
     cropped_image = image[top:bottom, left:right]
+    cv2.imwrite("cropped_info.jpg", cropped_image * 255)
     # Tách box info khỏi cropped_image
     info_boxes = crop_info_section(cv2.convertScaleAbs(cropped_image * 255))
     list_info_cropped = process_info_blocks(info_boxes)
@@ -276,13 +277,13 @@ def process_info_blocks(info_blocks):
         info_block_img = np.array(info_block[0])
         wh_block = info_block_img.shape[1]
         # check width của các block để phân biệt block SBD hay block MĐT
-        if wh_block > 100:
+        if wh_block > 100: # Block SBD
             offset1 = floor(wh_block // 6) # chiều rộng của mỗi ô
             for i in range(6):
                 box_img = np.array(
                     info_block_img[:, i * offset1:(i + 1) * offset1])
                 list_info_cropped.append(box_img)
-        else:
+        else: # Block MĐT
             offset1 = floor(wh_block // 3) # chiều rộng của mỗi ô
             for i in range(3):
                 box_img = np.array(
@@ -293,7 +294,7 @@ def process_info_blocks(info_blocks):
 
 # Predict info choice using model to predict (by class 0 -> 9)   
 def predict_info(img, model, index):
-    choice = ''
+    choice = 'x'
     imProcess = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
     h, w, _ = imProcess.shape
     results = model.predict(imProcess)
@@ -367,12 +368,12 @@ def crop_info_section(image):
     info_blocks = []
     x_old, y_old, w_old, h_old = 0, 0, 0, 0
     if len(cnts) > 0:
-        # Sắp xếp contour theo diện tích
+        # Sắp xếp contour theo diện tích giảm dần
         cnts = sorted(cnts, key=get_x_ver1)
         for i, c in enumerate(cnts):
             x_curr, y_curr, w_curr, h_curr = cv2.boundingRect(c)
             # Kiểm tra diện tích contours -> thu được contours có Smax và ko trùng nhau
-            if (35000 < w_curr * h_curr < 45000 or 17500 < w_curr * h_curr < 25000) and h_curr > 200:
+            if (35000 < w_curr * h_curr < 45000 or 17500 < w_curr * h_curr < 25000) and h_curr > 290:
                 check_xy_min = x_curr * y_curr - x_old * y_old
                 check_xy_max = (x_curr + w_curr) * (y_curr + h_curr) - (x_old + w_old) * (y_old + h_old)
                 if len(info_blocks) == 0:
@@ -382,6 +383,7 @@ def crop_info_section(image):
                     y_old = y_curr
                     w_old = w_curr
                     h_old = h_curr
+                    print(h_curr)
                 elif check_xy_min > 2000 and check_xy_max > 2000:
                     info_blocks.append(
                         (gray_img[y_curr:y_curr + h_curr, x_curr:x_curr + w_curr], [x_curr, y_curr, w_curr, h_curr]))
@@ -389,9 +391,10 @@ def crop_info_section(image):
                     y_old = y_curr
                     w_old = w_curr
                     h_old = h_curr
+                    print(h_curr)
 
         sorted_info_blocks = sorted(info_blocks, key=get_x)
-        return sorted_info_blocks    
+        return sorted_info_blocks           
 
 
 # =================== PROCESS ANSWER SECTION ===================================== 
@@ -415,7 +418,7 @@ def get_answers_boxes(img, data_idx = 0):
 def get_answers(img, number_answer):
     list_ans_boxes = crop_answer_section(cv2.convertScaleAbs(img * 255))
     list_ans = process_ans_blocks(list_ans_boxes)
-    pWeight = './model/best.pt'
+    pWeight = './model/new_trained/best_answer_1857-12-24-2023.pt'
     model = YOLO(pWeight)
     # Get result
     dict_results = {}
@@ -443,7 +446,6 @@ def process_ans_blocks(ans_blocks):
             offset2 = ceil(box_img.shape[0] / 5)
             for j in range(5):
                 list_answers.append(box_img[j * offset2:(j + 1) * offset2, :])
-
     return list_answers
 
 def predict_answer(img, model, index):
@@ -452,8 +454,8 @@ def predict_answer(img, model, index):
     h, w, _ = imProcess.shape # lấy kích thước của lát cắt câu hỏi
     results = model.predict(imProcess)
     data = results[0].boxes.data
+    lst_answer = []
     for i, data in enumerate(data):
-        print(data)
         x1 = int(data[0])
         y1 = int(data[1])
         x2 = int(data[2])
@@ -461,14 +463,13 @@ def predict_answer(img, model, index):
         # lấy class detect, x, and confi -> lấy đáp án
         confi = float(data[4])
         class1 = int(data[5])
-        lst_answer = []
-        # Kiểm tra nếu class là choice (0) -> nối vào danh sách phương án được khoanh
+        # Kiểm tra nếu class là choice (0) -> nối vào danh sách phương án được khoanh(trường hợp nhiều ô được khoanh)
         if class1 == 0 and confi > 0.5:
             lst_answer.append(get_answer_choice(iw=w, ix=x1))
-            choice = ",".join(lst_answer)
             continue
 
-    return choice
+    lst_answer = sorted(lst_answer)
+    return ",".join(lst_answer)
 
 def get_answer_choice(iw, ix):
     newIw = iw - 9 # trừ đi phần số thứ tự câu (padding bên trái)
@@ -540,7 +541,7 @@ def process_answer_sheet(imgPath):
     # Resize lại ảnh
     resize_img = cv2.resize(document, (1056, 1500), interpolation=cv2.INTER_AREA)
     
-    # cv2.imwrite("test_extract.jpg", document*255)
+    cv2.imwrite("test_extract.jpg", document*255)
     
     # cv2.imshow("Image", resize_img)
     # cv2.waitKey(0)
