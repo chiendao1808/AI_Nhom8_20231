@@ -250,10 +250,11 @@ def get_info(image):
     # Tách box info khỏi cropped_image
     info_boxes = crop_info_section(cv2.convertScaleAbs(cropped_image * 255))
     list_info_cropped = process_info_blocks(info_boxes)
-    pWeight = './model/best_info_combined_0812.pt'
+    pWeight = './model/new_trained/best_info_2330-12-22-2023.pt'
     model = YOLO(pWeight)
     dict_results = {}
     for index, info in enumerate(list_info_cropped):
+        cv2.imwrite(f"./test_folder/col{index}.jpg", info)
         selected_info = predict_info(img=info, model=model, index=index)
         dict_results[f'{index+1}'] = selected_info
     mssv = ''.join(list(dict_results.values())[:6])
@@ -303,6 +304,7 @@ def predict_info(img, model, index):
         confi = data[4]
         if(confi > max_confi):
             max_confi = confi
+            # choice = str(int(data[5]))
             choice = map_info_detect[int(data[5])]
     return choice
 
@@ -544,7 +546,8 @@ def process_answer_sheet(imgPath):
     result_answer = get_answers(resize_img, number_answer)
 
 
-    print(result_info, result_answer)
+    print(result_info)
+    print(result_answer)
     
     
     return result_info, result_answer
