@@ -227,7 +227,7 @@ def get_x_ver1(s):
     return s[0] * s[1]
 
 # =================== PROCESS INFO SECTION =====================================
-
+    
 map_info_detect = {
     16 : '0',
     17 : '1',
@@ -240,8 +240,11 @@ map_info_detect = {
     24 : '8',
     25 : '9',
 }
+def int4(input):
+    return map_info_detect[int(input)]
 
 def get_info(image):
+    # Cắt vùng SBD và MĐT theo bộ tọa độ nhất định
     left = 700
     top = 0
     right = 1056
@@ -250,7 +253,7 @@ def get_info(image):
     # Tách box info khỏi cropped_image
     info_boxes = crop_info_section(cv2.convertScaleAbs(cropped_image * 255))
     list_info_cropped = process_info_blocks(info_boxes)
-    pWeight = './model/new_trained/best_info_2330-12-22-2023.pt'
+    pWeight = './model/best_info_combined_0812.pt'
     model = YOLO(pWeight)
     dict_results = {}
     for index, info in enumerate(list_info_cropped):
@@ -305,7 +308,7 @@ def predict_info(img, model, index):
         if(confi > max_confi):
             max_confi = confi
             # choice = str(int(data[5]))
-            choice = map_info_detect[int(data[5])]
+            choice = str(int4(data[5]))
     return choice
 
 
@@ -364,6 +367,7 @@ def crop_info_section(image):
     info_blocks = []
     x_old, y_old, w_old, h_old = 0, 0, 0, 0
     if len(cnts) > 0:
+        # Sắp xếp contour theo diện tích
         cnts = sorted(cnts, key=get_x_ver1)
         for i, c in enumerate(cnts):
             x_curr, y_curr, w_curr, h_curr = cv2.boundingRect(c)
@@ -386,8 +390,8 @@ def crop_info_section(image):
                     w_old = w_curr
                     h_old = h_curr
 
-        sorted_ans_blocks = sorted(info_blocks, key=get_x)
-        return sorted_ans_blocks
+        sorted_info_blocks = sorted(info_blocks, key=get_x)
+        return sorted_info_blocks    
 
 
 # =================== PROCESS ANSWER SECTION ===================================== 
@@ -445,10 +449,11 @@ def process_ans_blocks(ans_blocks):
 def predict_answer(img, model, index):
     choice = ''
     imProcess = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
-    h, w, _ = imProcess.shape
+    h, w, _ = imProcess.shape # lấy kích thước của lát cắt câu hỏi
     results = model.predict(imProcess)
     data = results[0].boxes.data
     for i, data in enumerate(data):
+        print(data)
         x1 = int(data[0])
         y1 = int(data[1])
         x2 = int(data[2])
@@ -456,8 +461,11 @@ def predict_answer(img, model, index):
         # lấy class detect, x, and confi -> lấy đáp án
         confi = float(data[4])
         class1 = int(data[5])
-        if class1 == 0 and confi > 0.8:
-            choice = get_answer_choice(iw=w, ix=x1) #
+        lst_answer = []
+        # Kiểm tra nếu class là choice (0) -> nối vào danh sách phương án được khoanh
+        if class1 == 0 and confi > 0.5:
+            lst_answer.append(get_answer_choice(iw=w, ix=x1))
+            choice = ",".join(lst_answer)
             continue
 
     return choice
