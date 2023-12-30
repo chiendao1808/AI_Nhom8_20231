@@ -44,7 +44,7 @@ def run_app():
     upload_btn.grid(row=1,column=1)
     detect_btn = tk.Button(my_w, text='Detect', 
     width=20,command = lambda:display_result(result_view))
-    detect_btn.grid(row=2,column=1)
+    detect_btn.grid(row=2,column=3)
     
     my_w.mainloop()  # Keep the window open
     

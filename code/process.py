@@ -240,6 +240,14 @@ map_info_detect = {
     24 : '8',
     25 : '9',
 }
+
+map_answer_choice = {
+    0 : 'A',
+    1 : 'B',
+    2 : 'C',
+    3 : 'D'
+}
+
 def int4(input):
     return map_info_detect[int(input)]
 
@@ -254,7 +262,7 @@ def get_info(image):
     # Tách box info khỏi cropped_image
     info_boxes = crop_info_section(cv2.convertScaleAbs(cropped_image * 255))
     list_info_cropped = process_info_blocks(info_boxes)
-    pWeight = './model/best_info_combined_0812.pt'
+    pWeight = './model/new_trained/best_info_2330-12-24-2023.pt'
     model = YOLO(pWeight)
     dict_results = {}
     for index, info in enumerate(list_info_cropped):
@@ -278,13 +286,13 @@ def process_info_blocks(info_blocks):
         wh_block = info_block_img.shape[1]
         # check width của các block để phân biệt block SBD hay block MĐT
         if wh_block > 100: # Block SBD
-            offset1 = floor(wh_block // 6) # chiều rộng của mỗi ô
+            offset1 = floor(wh_block // 6) + 1 # chiều rộng của mỗi ô
             for i in range(6):
                 box_img = np.array(
                     info_block_img[:, i * offset1:(i + 1) * offset1])
                 list_info_cropped.append(box_img)
         else: # Block MĐT
-            offset1 = floor(wh_block // 3) # chiều rộng của mỗi ô
+            offset1 = floor(wh_block // 3) + 1 # chiều rộng của mỗi ô
             for i in range(3):
                 box_img = np.array(
                     info_block_img[:, i * offset1:(i + 1) * offset1])
@@ -300,7 +308,7 @@ def predict_info(img, model, index):
     results = model.predict(imProcess)
     lst_data = results[0].boxes.data
     lst_confi = results[0].boxes.conf
-    print(lst_confi)
+    # print(lst_confi)
 
     max_confi = 0.0
     for i, data in enumerate(lst_data):
@@ -308,8 +316,8 @@ def predict_info(img, model, index):
         confi = data[4]
         if(confi > max_confi):
             max_confi = confi
-            # choice = str(int(data[5]))
-            choice = str(int4(data[5]))
+            choice = str(int(data[5]))
+            # choice = str(int4(data[5]))
     return choice
 
 
@@ -449,30 +457,64 @@ def process_ans_blocks(ans_blocks):
     return list_answers
 
 def predict_answer(img, model, index):
+    print(f"Answer number {index+1}")
     choice = ''
     imProcess = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
     h, w, _ = imProcess.shape # lấy kích thước của lát cắt câu hỏi
     results = model.predict(imProcess)
+    # print(results)
     data = results[0].boxes.data
+    data = sorted(data, key=lambda item: float(item[0]))
+    
+    # danh sách dữ liệu được kiểm tra (không có chồng lấn giữa các detected box)
+    validated_data = []
+    curr_validated_data_idx = 0
+    for i in range(len(data)):
+        print(data[i])
+        if i == 0:
+            validated_data.append(data[i])
+            curr_validated_data_idx += 1
+        else:
+            curr_confi = data[i][4]
+            prev_confi = data[i-1][4]
+            if (data[i][0] < data[i-1][2]):
+                # if (int(data[i][5]) == 0 and int(data[i-1][5]) == 1) or curr_confi > prev_confi:
+                if curr_confi > prev_confi:
+                    validated_data[curr_validated_data_idx - 1] = data[i]                    
+                else: continue
+            else:
+                validated_data.append(data[i])
+                curr_validated_data_idx += 1    
+                
+    validated_data = sorted(validated_data, key=lambda item: float(item[0]))
+    answer_box_width = sum([float(item[2]) - float(item[0]) for item in validated_data])
+    print(answer_box_width)
+    print("Validated data: ")
     lst_answer = []
-    for i, data in enumerate(data):
-        x1 = int(data[0])
-        y1 = int(data[1])
-        x2 = int(data[2])
-        y2 = int(data[3])
+    for i, item in enumerate(validated_data):
+        print(item)
+        # x1 = int(item[0])
+        # y1 = int(item[1])
+        # x2 = int(item[2])
+        # y2 = int(item[3])
+        # start_point = (x1, y1)
+        # end_point = (x2, y2)
+        # cv2.imwrite(f"./box_answers{i}.jpg", cv2.rectangle(img, pt1= start_point, pt2 = end_point, color=(255, 0, 0), thickness=1))
         # lấy class detect, x, and confi -> lấy đáp án
-        confi = float(data[4])
-        class1 = int(data[5])
+        confi = float(item[4])
+        class_idx = int(item[5])
         # Kiểm tra nếu class là choice (0) -> nối vào danh sách phương án được khoanh(trường hợp nhiều ô được khoanh)
-        if class1 == 0 and confi > 0.5:
-            lst_answer.append(get_answer_choice(iw=w, ix=x1))
+        choice = map_answer_choice[i];
+        if class_idx == 0 and confi > 0.5:
+            # lst_answer.append(get_answer_choice(iw=w, ix=x1))
+            lst_answer.append(choice)
             continue
 
     lst_answer = sorted(lst_answer)
     return ",".join(lst_answer)
 
 def get_answer_choice(iw, ix):
-    newIw = iw - 9 # trừ đi phần số thứ tự câu (padding bên trái)
+    newIw = iw - 9 #(padding bên phải)
     choiceA = (ix - 35) / newIw
     choiceB = (ix - 25) / newIw
     choiceC = (ix - 15) / newIw
@@ -532,7 +574,7 @@ def crop_answer_section(img):
     # test for a single file
 def process_answer_sheet(imgPath):
     # Lấy ảnh 
-    image = cv2.imread(imgPath, cv2.IMREAD_COLOR)[:, :, ::-1]
+    image = cv2.imread(imgPath, cv2.IMREAD_ANYCOLOR)[:, :, ::-1]
     
     # Cắt background
     document = extract(image_true=image)
@@ -547,11 +589,13 @@ def process_answer_sheet(imgPath):
     # cv2.waitKey(0)
     
     # Lấy thông tin mã người làm bài và mã đề thi
-    result_info = get_info(resize_img)
+    result_info = {}
+    # result_info = get_info(resize_img)
     
     number_answer = 120
     
-    # Lấy các câu trả lời 
+    # Lấy các câu trả lời
+    result_answer = {}
     result_answer = get_answers(resize_img, number_answer)
 
 
