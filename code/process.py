@@ -490,10 +490,16 @@ def predict_answer(img, model, index):
     answer_box_width = sum([float(item[2]) - float(item[0]) for item in validated_data])
     print(answer_box_width)
     print("Validated data: ")
+    
+    # trích xuất dữ liệu phương án tô
+    max_gap_item = 50.0 # độ rộng tối đa giữa 2 giá trị x1 (ước lượng)
     lst_answer = []
-    for i, item in enumerate(validated_data):
+    for i in range(len(validated_data)):
+        item = validated_data[i]
         print(item)
-        # x1 = int(item[0])
+        x1 = float(item[0])
+        if (i == 0 and x1 > max_gap_item) or (i > 0 and x1 - validated_data[i-1][0] > max_gap_item):
+            continue
         # y1 = int(item[1])
         # x2 = int(item[2])
         # y2 = int(item[3])
