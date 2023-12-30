@@ -281,15 +281,18 @@ def get_info(image):
 def process_info_blocks(info_blocks):
     list_info_cropped = []
     # loop các khối đã tách được bằng contour
+    block_idx = 0
     for info_block in info_blocks:
         info_block_img = np.array(info_block[0])
+        cv2.imwrite(f"./test_folder/block{block_idx}.jpg", info_block_img)
+        block_idx +=1
         wh_block = info_block_img.shape[1]
         # check width của các block để phân biệt block SBD hay block MĐT
         if wh_block > 100: # Block SBD
             offset1 = floor(wh_block // 6) + 1 # chiều rộng của mỗi ô
             for i in range(6):
                 box_img = np.array(
-                    info_block_img[:, i * offset1:(i + 1) * offset1])
+                    info_block_img[:, i * offset1 :(i + 1) * offset1])
                 list_info_cropped.append(box_img)
         else: # Block MĐT
             offset1 = floor(wh_block // 3) + 1 # chiều rộng của mỗi ô
@@ -478,8 +481,7 @@ def predict_answer(img, model, index):
             curr_confi = data[i][4]
             prev_confi = data[i-1][4]
             if (data[i][0] < data[i-1][2]):
-                # if (int(data[i][5]) == 0 and int(data[i-1][5]) == 1) or curr_confi > prev_confi:
-                if curr_confi > prev_confi:
+                if (int(data[i][5]) == 0 and int(data[i-1][5]) == 1) or curr_confi > prev_confi:
                     validated_data[curr_validated_data_idx - 1] = data[i]                    
                 else: continue
             else:
@@ -596,13 +598,13 @@ def process_answer_sheet(imgPath):
     
     # Lấy thông tin mã người làm bài và mã đề thi
     result_info = {}
-    # result_info = get_info(resize_img)
+    result_info = get_info(resize_img)
     
     number_answer = 120
     
     # Lấy các câu trả lời
     result_answer = {}
-    result_answer = get_answers(resize_img, number_answer)
+    # result_answer = get_answers(resize_img, number_answer)
 
 
     print(result_info)

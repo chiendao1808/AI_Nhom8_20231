@@ -10,7 +10,7 @@ if __name__ == "__main__":
     # result_info = process.process_answer_sheet(imgPath = local_img_path)
     
     # print("Main Application")
-    data_path = "C:\\Users\\leope\\Desktop\\answer_new_data";
+    data_path = "./data";
     numFiles = 0;
     for file in os.scandir(data_path):
         if file.is_file():
@@ -20,7 +20,7 @@ if __name__ == "__main__":
     
     # process each image file in folder data
     for i in range (numFiles):
-        image_test_path = f"{data_path}/sheet{i+1}.jpg"
+        image_test_path = f"{data_path}/f{i+1}.jpg"
         image_test = cv2.imread(image_test_path, cv2.IMREAD_ANYCOLOR)[:, :, ::-1]
         # extract background
         document = process.extract(image_test)
@@ -32,12 +32,13 @@ if __name__ == "__main__":
         resize_image = cv2.resize(document, (1056, 1500), interpolation=cv2.INTER_AREA)
         
         # # Crop info section
-        left = 700
-        top = 0
-        right = 1056
-        bottom = 500
-        cropped_section = resize_image[top:bottom, left:right]
-        # info_write_path = f"C:\\Users\\leope\\Desktop\\answer_new_data\\info_cropped/a{i+1+56}.jpg"
+        # left = 700
+        # top = 0
+        # right = 1056
+        # bottom = 500
+        # cropped_section = resize_image[top:bottom, left:right]
+        # cropped_section = cv2.cvtColor(cropped_section, cv2.COLOR_BGR2GRAY)
+        # info_write_path = f"C:\\Users\\leope\\Desktop\\dataset_info_21-12\\clean_data\\clone-info-val\\c{i+1}.jpg"
         # cv2.imwrite(info_write_path, cropped_section * 255.0)
         
         # # Crop multiple choice section
