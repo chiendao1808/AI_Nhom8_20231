@@ -252,6 +252,9 @@ def int4(input):
     return map_info_detect[int(input)]
 
 def get_info(image):
+    # Load model
+    pWeight = './model/new_trained/best_info_2330-12-30-2023.pt'
+    model = YOLO(pWeight)
     # Cắt vùng SBD và MĐT theo bộ tọa độ nhất định
     left = 700
     top = 0
@@ -259,22 +262,77 @@ def get_info(image):
     bottom = 500
     cropped_image = image[top:bottom, left:right]
     cv2.imwrite("cropped_info.jpg", cropped_image * 255)
-    # Tách box info khỏi cropped_image
+    # Tách các box info (SBD và MĐT) khỏi cropped_image
     info_boxes = crop_info_section(cv2.convertScaleAbs(cropped_image * 255))
-    list_info_cropped = process_info_blocks(info_boxes)
-    pWeight = './model/new_trained/best_info_2330-12-24-2023.pt'
-    model = YOLO(pWeight)
-    dict_results = {}
-    for index, info in enumerate(list_info_cropped):
-        cv2.imwrite(f"./test_folder/col{index}.jpg", info)
-        selected_info = predict_info(img=info, model=model, index=index)
-        dict_results[f'{index+1}'] = selected_info
-    mssv = ''.join(list(dict_results.values())[:6])
-    madethi = ''.join(list(dict_results.values())[-3:])
+    # Thuật toán trích xuất mới
+    std_code, test_code = predict_info_blocks(info_boxes, model=model)
+    
+    ## START OLD ALGORITHM
+    # list_info_cropped = process_info_blocks(info_boxes)
+    # dict_results = {}
+    # for index, info in enumerate(list_info_cropped):
+    #     cv2.imwrite(f"./test_folder/col{index}.jpg", info)
+    #     # selected_info = predict_info(img=info, model=model, index=index)
+    #     selected_info = 'x'
+    #     dict_results[f'{index+1}'] = selected_info
+    # mssv = ''.join(list(dict_results.values())[:6])
+    # madethi = ''.join(list(dict_results.values())[-3:])
     result_info = {}
-    result_info["SBD"] = mssv
-    result_info["MDT"] = madethi
+    # result_info["SBD"] = mssv
+    # result_info["MDT"] = madethi
+    ## END OLD ALGORITHM
+    
+    result_info["SBD"] = ''.join(std_code)
+    result_info["MĐT"] = ''.join(test_code)
     return result_info
+
+def predict_info_blocks(info_blocks, model):
+    std_code = []
+    test_code = []
+    # loop các khối đã tách được bằng contour
+    block_idx = 0
+    for info_block in info_blocks:
+        info_block_img = np.array(info_block[0])
+        h_block,w_block = info_block_img.shape
+        cv2.imwrite(f"./test_folder/block{block_idx}.jpg", info_block_img)
+        block_idx +=1
+        # test predict
+        imProcess = cv2.cvtColor(info_block_img, cv2.COLOR_GRAY2BGR)
+        predictResult = model.predict(imProcess)
+        # sx theo tọa độ x1
+        results = sorted(predictResult[0].boxes.data, key=lambda item: int(item[0]))
+        validated_results = []
+        curr_validated_idx = 0
+        for i in range(len(results)):
+            curr_box = results[i]
+            print(curr_box)
+            if i == 0:
+                validated_results.append(curr_box)
+                curr_validated_idx += 1
+            else:         
+                prev_box = validated_results[curr_validated_idx - 1]
+                prev_box_width = (prev_box[2] - prev_box[0])
+                # check trùng lặp box với ngưỡng là (prev_box_width) * 2/3
+                if curr_box[0] - prev_box[0] < (2/3) * prev_box_width: # kiểm tra trùng boxes
+                     if curr_box[4] > prev_box[4]:
+                        validated_results[curr_validated_idx - 1] = curr_box
+                     else:
+                         continue
+                else:
+                    validated_results.append(curr_box)
+                    curr_validated_idx += 1          
+        # trích xuất dữ liệu từ các box xác định được
+        print("\n")
+        for item in validated_results:
+            print(item)
+            # lọc các tensor có confi > 0.7 (3012)
+            selected = str(int(item[5]))
+            # check width của các block để phân biệt block SBD hay block MĐT
+            if w_block > 100: # Block SBD
+                std_code.append(selected)
+            else: # Block MĐT
+                test_code.append(selected)
+    return std_code, test_code
     
 
 # Process info blocks    
@@ -284,21 +342,21 @@ def process_info_blocks(info_blocks):
     block_idx = 0
     for info_block in info_blocks:
         info_block_img = np.array(info_block[0])
+        h_block,w_block = info_block_img.shape
         cv2.imwrite(f"./test_folder/block{block_idx}.jpg", info_block_img)
         block_idx +=1
-        wh_block = info_block_img.shape[1]
         # check width của các block để phân biệt block SBD hay block MĐT
-        if wh_block > 100: # Block SBD
-            offset1 = floor(wh_block // 6) + 1 # chiều rộng của mỗi ô
+        if w_block > 100: # Block SBD
+            offset1 = w_block // 6 # chiều rộng của mỗi ô
             for i in range(6):
                 box_img = np.array(
-                    info_block_img[:, i * offset1 :(i + 1) * offset1])
+                    info_block_img[:, i * offset1:(i + 1) * offset1 + (2 if i != 2 else 0)])
                 list_info_cropped.append(box_img)
         else: # Block MĐT
-            offset1 = floor(wh_block // 3) + 1 # chiều rộng của mỗi ô
+            offset1 = w_block // 3 # chiều rộng của mỗi ô
             for i in range(3):
                 box_img = np.array(
-                    info_block_img[:, i * offset1:(i + 1) * offset1])
+                    info_block_img[:, i * offset1:(i + 1) * offset1 + (2 if i != 2 else 0)])
                 list_info_cropped.append(box_img)
     return list_info_cropped
     
