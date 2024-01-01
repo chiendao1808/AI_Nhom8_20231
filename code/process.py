@@ -222,7 +222,7 @@ def get_h(s):
     return s[1][3]
 
 # Diện tích contours
-def get_x_ver1(s):
+def get_s(s):
     s = cv2.boundingRect(s)
     return s[0] * s[1]
 
@@ -428,16 +428,20 @@ def get_info_choose(ix):
         
 # croppted info boxes by CONTOUR
 def crop_info_section(image):
+    # chuyển hệ màu image từ BRG sang GRAY để áp dụng thuật toán Canny Edge Detection
     gray_img = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    # Giảm nhiễu ảnh gây ra bởi mờ (blur)
     blurred = cv2.GaussianBlur(gray_img, (9, 9), 0)
+    # Sử dụng Canny Edge Detection cho ảnh đã xử lý blur
     img_canny = cv2.Canny(blurred, 0, 20)
+    # Tìm các contours
     cnts = cv2.findContours(img_canny.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     cnts = imutils.grab_contours(cnts)
     info_blocks = []
     x_old, y_old, w_old, h_old = 0, 0, 0, 0
     if len(cnts) > 0:
         # Sắp xếp contour theo diện tích giảm dần
-        cnts = sorted(cnts, key=get_x_ver1)
+        cnts = sorted(cnts, key=get_s)
         for i, c in enumerate(cnts):
             x_curr, y_curr, w_curr, h_curr = cv2.boundingRect(c)
             # Kiểm tra diện tích contours -> thu được contours có Smax và ko trùng nhau
@@ -598,9 +602,13 @@ def get_answer_choice(iw, ix):
     return choice
 
 def crop_answer_section(img):
+    # chuyển hệ màu image từ BRG sang GRAY để áp dụng thuật toán Canny Edge Detection
     gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    # Giảm nhiễu ảnh gây ra bởi mờ (blur)
     blurred = cv2.GaussianBlur(gray_img, (9, 9), 0)
+    # Sử dụng Canny Edge Detection cho ảnh đã xử lý blur
     img_canny = cv2.Canny(blurred, 0, 20)
+    # Tìm các contours
     cnts = cv2.findContours(
         img_canny.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     cnts = imutils.grab_contours(cnts)
@@ -608,7 +616,7 @@ def crop_answer_section(img):
     x_old, y_old, w_old, h_old = 0, 0, 0, 0
 
     if len(cnts) > 0:
-        cnts = sorted(cnts, key=get_x_ver1)
+        cnts = sorted(cnts, key=get_s)
         # Loop qua các contours xác định được
         for i, c in enumerate(cnts):
             x_curr, y_curr, w_curr, h_curr = cv2.boundingRect(c)
