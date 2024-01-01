@@ -221,7 +221,6 @@ def get_y(s):
 def get_h(s):
     return s[1][3]
 
-# Diện tích contours
 def get_s(s):
     s = cv2.boundingRect(s)
     return s[0] * s[1]
@@ -305,7 +304,7 @@ def predict_info_blocks(info_blocks, model):
         curr_validated_idx = 0
         for i in range(len(results)):
             curr_box = results[i]
-            print(curr_box)
+            # print(curr_box)
             if i == 0:
                 validated_results.append(curr_box)
                 curr_validated_idx += 1
@@ -324,7 +323,7 @@ def predict_info_blocks(info_blocks, model):
         # trích xuất dữ liệu từ các box xác định được
         print("\n")
         for item in validated_results:
-            print(item)
+            # print(item)
             selected = str(int(item[5]))
             # check width của các block để phân biệt block SBD hay block MĐT
             if w_block > 100: # Block SBD
@@ -440,12 +439,12 @@ def crop_info_section(image):
     info_blocks = []
     x_old, y_old, w_old, h_old = 0, 0, 0, 0
     if len(cnts) > 0:
-        # Sắp xếp contour theo diện tích giảm dần
+        # Sắp xếp contour theo diện tích
         cnts = sorted(cnts, key=get_s)
         for i, c in enumerate(cnts):
             x_curr, y_curr, w_curr, h_curr = cv2.boundingRect(c)
             # Kiểm tra diện tích contours -> thu được contours có Smax và ko trùng nhau
-            if (35000 < w_curr * h_curr < 45000 or 17500 < w_curr * h_curr < 25000) and h_curr > 290:
+            if (35000 < w_curr * h_curr < 45000 or 17500 < w_curr * h_curr < 25000) and h_curr > 285:
                 check_xy_min = x_curr * y_curr - x_old * y_old
                 check_xy_max = (x_curr + w_curr) * (y_curr + h_curr) - (x_old + w_old) * (y_old + h_old)
                 if len(info_blocks) == 0:
@@ -545,9 +544,11 @@ def predict_answer(img, model, index):
             curr_confi = float(curr_box[4])
             prev_confi = float(prev_box[4])
             if (curr_box[0] < prev_box[2]):
-                if (int(curr_box[5]) == 0 and int(prev_box[5]) == 1) or curr_confi > prev_confi:
+                if (int(curr_box[5]) == 0 and int(prev_box[5]) == 1):
                     validated_data[curr_validated_data_idx - 1] = curr_box                   
-                else: 
+                elif int(curr_box[5]) == 1 and int(prev_box[0]) == 0 and curr_confi - prev_confi >= 0.5:
+                    validated_data[curr_validated_data_idx - 1] = curr_box
+                else:
                     continue
             else:
                 validated_data.append(curr_box)
@@ -574,7 +575,7 @@ def predict_answer(img, model, index):
         class_idx = int(item[5])
         # Kiểm tra nếu class là choice (0) -> nối vào danh sách phương án được khoanh(trường hợp nhiều ô được khoanh)
         choice = map_answer_choice[i];
-        if class_idx == 0 and confi > 0.5:
+        if class_idx == 0:
             # lst_answer.append(get_answer_choice(iw=w, ix=x1))
             lst_answer.append(choice)
             continue
