@@ -312,8 +312,8 @@ def predict_info_blocks(info_blocks, model):
             else:         
                 prev_box = validated_results[curr_validated_idx - 1]
                 prev_box_width = (prev_box[2] - prev_box[0])
-                # check trùng lặp box với ngưỡng là (prev_box_width) * 2/3
-                if curr_box[0] - prev_box[0] < (2/3) * prev_box_width: # kiểm tra trùng boxes
+                # check trùng lặp box với ngưỡng là (prev_box_width) * 1/3
+                if curr_box[0] - prev_box[0] < (1/3) * prev_box_width: # kiểm tra trùng boxes
                      if curr_box[4] > prev_box[4]:
                         validated_results[curr_validated_idx - 1] = curr_box
                      else:
