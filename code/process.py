@@ -267,7 +267,7 @@ def get_info(image):
     # Thuật toán trích xuất mới
     std_code, test_code = predict_info_blocks(info_boxes, model=model)
     
-    ## START OLD ALGORITHM
+    ############### START OLD ALGORITHM ################
     # list_info_cropped = process_info_blocks(info_boxes)
     # dict_results = {}
     # for index, info in enumerate(list_info_cropped):
@@ -280,7 +280,7 @@ def get_info(image):
     result_info = {}
     # result_info["SBD"] = mssv
     # result_info["MDT"] = madethi
-    ## END OLD ALGORITHM
+    ################# END OLD ALGORITHM #########################
     
     result_info["SBD"] = ''.join(std_code)
     result_info["MĐT"] = ''.join(test_code)
@@ -293,7 +293,7 @@ def predict_info_blocks(info_blocks, model):
     block_idx = 0
     for info_block in info_blocks:
         info_block_img = np.array(info_block[0])
-        h_block,w_block = info_block_img.shape
+        h_block, w_block = info_block_img.shape
         cv2.imwrite(f"./test_folder/block{block_idx}.jpg", info_block_img)
         block_idx +=1
         # test predict
@@ -312,8 +312,8 @@ def predict_info_blocks(info_blocks, model):
             else:         
                 prev_box = validated_results[curr_validated_idx - 1]
                 prev_box_width = (prev_box[2] - prev_box[0])
-                # check trùng lặp box với ngưỡng là (prev_box_width) * 1/3
-                if curr_box[0] - prev_box[0] < (1/3) * prev_box_width: # kiểm tra trùng boxes
+                # check trùng lặp box với ngưỡng là (prev_box_width) * 2/3
+                if curr_box[0] - prev_box[0] < (2/3) * prev_box_width: # kiểm tra trùng boxes
                      if curr_box[4] > prev_box[4]:
                         validated_results[curr_validated_idx - 1] = curr_box
                      else:
@@ -325,7 +325,6 @@ def predict_info_blocks(info_blocks, model):
         print("\n")
         for item in validated_results:
             print(item)
-            # lọc các tensor có confi > 0.7 (3012)
             selected = str(int(item[5]))
             # check width của các block để phân biệt block SBD hay block MĐT
             if w_block > 100: # Block SBD
@@ -517,6 +516,7 @@ def process_ans_blocks(ans_blocks):
                 list_answers.append(box_img[j * offset2:(j + 1) * offset2, :])
     return list_answers
 
+# Đưa vào mô hình dự đoán
 def predict_answer(img, model, index):
     print(f"Answer number {index+1}")
     choice = ''
@@ -531,19 +531,22 @@ def predict_answer(img, model, index):
     validated_data = []
     curr_validated_data_idx = 0
     for i in range(len(data)):
-        print(data[i])
+        curr_box = data[i]
+        print(curr_box)
         if i == 0:
             validated_data.append(data[i])
             curr_validated_data_idx += 1
         else:
-            curr_confi = data[i][4]
-            prev_confi = data[i-1][4]
-            if (data[i][0] < data[i-1][2]):
-                if (int(data[i][5]) == 0 and int(data[i-1][5]) == 1) or curr_confi > prev_confi:
-                    validated_data[curr_validated_data_idx - 1] = data[i]                    
-                else: continue
+            prev_box = validated_data[curr_validated_data_idx-1]
+            curr_confi = float(curr_box[4])
+            prev_confi = float(prev_box[4])
+            if (curr_box[0] < prev_box[2]):
+                if (int(curr_box[5]) == 0 and int(prev_box[5]) == 1) or curr_confi > prev_confi:
+                    validated_data[curr_validated_data_idx - 1] = curr_box                   
+                else: 
+                    continue
             else:
-                validated_data.append(data[i])
+                validated_data.append(curr_box)
                 curr_validated_data_idx += 1    
                 
     validated_data = sorted(validated_data, key=lambda item: float(item[0]))
@@ -552,17 +555,13 @@ def predict_answer(img, model, index):
     print("Validated data: ")
     
     # trích xuất dữ liệu phương án tô
-    max_gap_item = 50.0 # độ rộng tối đa giữa 2 giá trị x1 (ước lượng)
+    max_gap_item = 50.0 # độ rộng tối đa giữa 2 giá trị x1
     lst_answer = []
     for i in range(len(validated_data)):
         item = validated_data[i]
         print(item)
-        x1 = float(item[0])
-        if (i == 0 and x1 > max_gap_item) or (i > 0 and x1 - validated_data[i-1][0] > max_gap_item):
+        if i > 0 and float(item[0]) - validated_data[i-1][0] > max_gap_item:
             continue
-        # y1 = int(item[1])
-        # x2 = int(item[2])
-        # y2 = int(item[3])
         # start_point = (x1, y1)
         # end_point = (x2, y2)
         # cv2.imwrite(f"./box_answers{i}.jpg", cv2.rectangle(img, pt1= start_point, pt2 = end_point, color=(255, 0, 0), thickness=1))
@@ -649,7 +648,7 @@ def process_answer_sheet(imgPath):
     # Resize lại ảnh
     resize_img = cv2.resize(document, (1056, 1500), interpolation=cv2.INTER_AREA)
     
-    cv2.imwrite("test_extract.jpg", document*255)
+    cv2.imwrite("test_extract.jpg", document * 255.0)
     
     # cv2.imshow("Image", resize_img)
     # cv2.waitKey(0)
@@ -662,7 +661,7 @@ def process_answer_sheet(imgPath):
     
     # Lấy các câu trả lời
     result_answer = {}
-    # result_answer = get_answers(resize_img, number_answer)
+    result_answer = get_answers(resize_img, number_answer)
 
 
     print(result_info)
