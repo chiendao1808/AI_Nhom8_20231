@@ -535,7 +535,7 @@ def predict_answer(img, model, index):
     curr_validated_data_idx = 0
     for i in range(len(data)):
         curr_box = data[i]
-        print(curr_box)
+        # print(curr_box)
         if i == 0:
             validated_data.append(data[i])
             curr_validated_data_idx += 1
@@ -564,7 +564,7 @@ def predict_answer(img, model, index):
     lst_answer = []
     for i in range(len(validated_data)):
         item = validated_data[i]
-        print(item)
+        # print(item)
         if i > 0 and float(item[0]) - validated_data[i-1][0] > max_gap_item:
             continue
         # start_point = (x1, y1)
